@@ -1,0 +1,118 @@
+{
+  "name": "@webship.co/workspace-plane",
+  "version": "1.0.0",
+  "description": "Plane for Webship Workspace: the builder (`cmd-plane-project.sh`, a site of the open-source project and work management software, Community Edition, from Plane's all-in-one image on the project's own PostgreSQL, with Valkey, RabbitMQ and an S3 store beside it, in containers: DDEV, with the default accounts as members of a sample workspace and project and its work items and cycle) and its tool in every sites folder, the Plane step pack wired into the testing setup, the work items of a Plane as work items of the tracker family (list, read, analyze, and do the work with the workspace's AI CLI on a branch; comments, moves and assignees after a person's click, writes off by default; the Community Edition has no worklog and no server-side filters), and its AI items in their folders.",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "license": "ISC",
+  "engines": {
+    "node": ">=24"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/webship/workspace-plane.git"
+  },
+  "files": [
+    "dist/src",
+    "ai",
+    "commands",
+    "config",
+    "features",
+    "scripts",
+    "testing",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "workspacePlugin": {
+    "name": "plane",
+    "label": "Plane",
+    "summary": "A builder for Plane sites (Community Edition) with a sample project and cycle; its work items as work items",
+    "needs": [
+      [
+        "dev",
+        "test",
+        "sandboxes",
+        "demos"
+      ],
+      "ai-agents",
+      "ai-skills",
+      "ai-commands",
+      "ai-prompts"
+    ],
+    "typeActions": {
+      "plane": [
+        "sites",
+        "code"
+      ]
+    },
+    "settingsFile": "plugin.plane.settings.yml",
+    "settingsTemplate": "config/plugin.plane.settings.yml",
+    "labels": "config/settings.labels.yml",
+    "commands": {
+      "types": [
+        "sites"
+      ],
+      "workspaces": [
+        "dev",
+        "test",
+        "sandboxes",
+        "demos"
+      ],
+      "files": [
+        "commands/cmd-plane-project.sh",
+        "commands/cmd-tools-plane-cli.sh"
+      ]
+    },
+    "scripts": {
+      "functions": [
+        "scripts/functions/fun-plane.sh"
+      ],
+      "args": [
+        "scripts/args/arg-plane.sh",
+        "scripts/args/arg-plane-cli.sh"
+      ],
+      "machine": [
+        "scripts/docker-compose.plane.yaml",
+        "scripts/plane-site.py",
+        "scripts/plane-start.sh",
+        "testing/site.feature"
+      ]
+    },
+    "ai": {
+      "agents": [
+        "ai/agents/plane-site-builder.md",
+        "ai/agents/plane-tester.md",
+        "ai/agents/plane-issue-worker.md"
+      ],
+      "skills": [
+        "ai/skills/plane-scenarios"
+      ],
+      "commands": [
+        "ai/commands/plane-test.md"
+      ],
+      "prompts": [
+        "ai/prompts/plane-build-and-test.md",
+        "ai/prompts/plane-issue-to-branch.md"
+      ]
+    },
+    "features": [
+      "features/plane.feature"
+    ]
+  },
+  "dependencies": {
+    "@webship.co/workspace-tracker": "^1.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@webship.co/workspace-plugin-api": "^1.0.11",
+    "typescript": "^5.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

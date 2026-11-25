@@ -1,0 +1,54 @@
+{
+ "archived_at": null,
+ "assignees": [
+  {
+   "avatar": "",
+   "avatar_url": null,
+   "display_name": "owner",
+   "email": "owner@example.com",
+   "first_name": "Owner",
+   "id": "b4638659-999b-48f4-ba45-7067c261f5c4",
+   "last_name": "Test"
+  }
+ ],
+ "completed_at": "2026-11-25T14:16:15.632660Z",
+ "created_at": "2026-11-25T14:05:58.871010Z",
+ "created_by": {
+  "avatar": "",
+  "avatar_url": null,
+  "display_name": "member",
+  "email": "member@example.com",
+  "first_name": "Member",
+  "id": "8131ba8b-68ec-4b3f-9d85-01035cb30e89",
+  "last_name": "Test"
+ },
+ "deleted_at": null,
+ "description_binary": null,
+ "description_html": "<p>Steps: open the page, read the <code>greeting</code>.</p>",
+ "estimate_point": null,
+ "external_id": null,
+ "external_source": null,
+ "id": "422e3eb1-35e7-408d-8ed8-12078bdbea76",
+ "is_draft": false,
+ "labels": [],
+ "name": "Webship test explore, renamed",
+ "parent": null,
+ "point": null,
+ "priority": "none",
+ "project": "920d4a86-c839-4ab0-813a-12f1e4c694ce",
+ "sequence_id": 4,
+ "sort_order": 65535.0,
+ "start_date": null,
+ "state": {
+  "color": "#46A758",
+  "group": "completed",
+  "id": "7ad3c65e-0111-47ba-b2cf-977d4b354fab",
+  "name": "Done"
+ },
+ "target_date": null,
+ "type": null,
+ "type_id": null,
+ "updated_at": "2026-11-25T14:16:15.652985Z",
+ "updated_by": "8131ba8b-68ec-4b3f-9d85-01035cb30e89",
+ "workspace": "a552e5a5-8f41-4166-91c4-9c32beb1e699"
+}
