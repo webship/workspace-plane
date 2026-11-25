@@ -1,0 +1,51 @@
+{
+ "count": 3,
+ "extra_stats": null,
+ "grouped_by": null,
+ "next_cursor": "100:1:0",
+ "next_page_results": false,
+ "prev_cursor": "100:-1:1",
+ "prev_page_results": false,
+ "results": [
+  {
+   "avatar": "",
+   "avatar_url": null,
+   "display_name": "reader",
+   "email": "reader@example.com",
+   "first_name": "Reader",
+   "id": "432abafc-55b2-44f9-b769-260351e0c109",
+   "is_active": true,
+   "is_bot": false,
+   "last_name": "Test",
+   "role": 5
+  },
+  {
+   "avatar": "",
+   "avatar_url": null,
+   "display_name": "member",
+   "email": "member@example.com",
+   "first_name": "Member",
+   "id": "8131ba8b-68ec-4b3f-9d85-01035cb30e89",
+   "is_active": true,
+   "is_bot": false,
+   "last_name": "Test",
+   "role": 15
+  },
+  {
+   "avatar": "",
+   "avatar_url": null,
+   "display_name": "owner",
+   "email": "owner@example.com",
+   "first_name": "Owner",
+   "id": "b4638659-999b-48f4-ba45-7067c261f5c4",
+   "is_active": true,
+   "is_bot": false,
+   "last_name": "Test",
+   "role": 20
+  }
+ ],
+ "sub_grouped_by": null,
+ "total_count": 3,
+ "total_pages": 1,
+ "total_results": 3
+}

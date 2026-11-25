@@ -1,0 +1,79 @@
+{
+ "count": 1,
+ "extra_stats": null,
+ "grouped_by": null,
+ "next_cursor": "100:1:0",
+ "next_page_results": false,
+ "prev_cursor": "100:-1:1",
+ "prev_page_results": false,
+ "results": [
+  {
+   "archived_at": null,
+   "assignees": [
+    {
+     "avatar": "",
+     "avatar_url": null,
+     "display_name": "member",
+     "email": "member@example.com",
+     "first_name": "Member",
+     "id": "8131ba8b-68ec-4b3f-9d85-01035cb30e89",
+     "last_name": "Test"
+    }
+   ],
+   "completed_at": null,
+   "created_at": "2026-11-25T14:02:34.995438Z",
+   "created_by": "b4638659-999b-48f4-ba45-7067c261f5c4",
+   "deleted_at": null,
+   "description_binary": null,
+   "description_html": "<p class=\"editor-paragraph-block\" data-id=\"45f2ee4f-05a9-408c-a945-0d98a79673ca\">Run <code class=\"rounded-sm bg-layer-3 px-[6px] py-[1.5px] font-code font-medium text-(--extended-color-orange-600) border-[0.5px] border-subtle\" spellcheck=\"false\">./greeting.sh Ada</code>: it prints \"Helo, Ada!\". It should print \"Hello, Ada!\".</p>",
+   "estimate_point": null,
+   "external_id": null,
+   "external_source": null,
+   "id": "4469392c-d9b3-441f-8991-566a1a58f270",
+   "is_draft": false,
+   "labels": [
+    {
+     "color": "#ee0701",
+     "created_at": "2026-11-25T14:02:34.989112Z",
+     "created_by": "b4638659-999b-48f4-ba45-7067c261f5c4",
+     "deleted_at": null,
+     "description": "",
+     "external_id": null,
+     "external_source": null,
+     "id": "d3ef2412-aaf5-42e0-97c6-24f5153f3a12",
+     "name": "bug",
+     "parent": null,
+     "project": "920d4a86-c839-4ab0-813a-12f1e4c694ce",
+     "sort_order": 65535.0,
+     "updated_at": "2026-11-25T14:02:34.989119Z",
+     "updated_by": null,
+     "workspace": "a552e5a5-8f41-4166-91c4-9c32beb1e699"
+    }
+   ],
+   "name": "The greeting script says Helo instead of Hello",
+   "parent": null,
+   "point": null,
+   "priority": "high",
+   "project": "920d4a86-c839-4ab0-813a-12f1e4c694ce",
+   "sequence_id": 1,
+   "sort_order": 65535.0,
+   "start_date": null,
+   "state": {
+    "color": "#F59E0B",
+    "group": "started",
+    "id": "e75bef76-f8ff-4b87-8a27-8363cd5b28d7",
+    "name": "In Progress"
+   },
+   "target_date": null,
+   "type": null,
+   "type_id": null,
+   "updated_at": "2026-11-25T14:05:35.016199Z",
+   "updated_by": "8131ba8b-68ec-4b3f-9d85-01035cb30e89",
+   "workspace": "a552e5a5-8f41-4166-91c4-9c32beb1e699"
+  }
+ ],
+ "sub_grouped_by": null,
+ "total_count": 1,
+ "total_pages": 1,
+ "total_results": 1
+}

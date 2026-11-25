@@ -1,0 +1,84 @@
+# Plane of this project: Plane's all-in-one image (its proxy, web app, admin, space, API, live server and workers) on
+# the project's own PostgreSQL (the container tool's db service), with Valkey, RabbitMQ and an S3 store beside it,
+# served at the project's address; the project's web container keeps the mail catcher. Written by the Plane builder of
+# the workspace (the plugin's docker-compose.plane.yaml); build again rather than editing by hand. The site's own
+# values (its secret keys, the store's keys) are in plane/env, which only you can read.
+services:
+  web:
+    environment:
+      - HTTP_EXPOSE=8093:80,8025:8025
+      - HTTPS_EXPOSE=8457:80,8026:8025
+  plane:
+    image: "${PLANE_IMAGE:-docker.io/makeplane/plane-aio-community:v1.5.1}"
+    container_name: ddev-${DDEV_SITENAME}-plane
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    restart: "no"
+    expose:
+      - "80"
+    # Plane migrates its database as it starts: a new project's database is still being made when its containers
+    # start, so Plane waits for it to be healthy, and for its queue and its store to be up.
+    depends_on:
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      minio:
+        condition: service_started
+    env_file:
+      - ${DDEV_APPROOT}/plane/env
+    # The image starts from its own settings file and copies only some of the container's values into it: the site's
+    # login limit goes into it first (plane-start.sh), then the image's own start runs.
+    command: ["sh", "/opt/webship/plane-start.sh"]
+    volumes:
+      # The plugin's scripts, which the builder and the tool run in this container.
+      - ${DDEV_APPROOT}/plane:/opt/webship:ro
+    environment:
+      VIRTUAL_HOST: ${DDEV_HOSTNAME}
+      HTTP_EXPOSE: "80:80"
+      HTTPS_EXPOSE: "443:80"
+  valkey:
+    image: "docker.io/valkey/valkey:7.2.11-alpine"
+    container_name: ddev-${DDEV_SITENAME}-valkey
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    restart: "no"
+    expose:
+      - "6379"
+  rabbitmq:
+    image: "docker.io/library/rabbitmq:3.13.6-alpine"
+    container_name: ddev-${DDEV_SITENAME}-rabbitmq
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    restart: "no"
+    expose:
+      - "5672"
+    env_file:
+      - ${DDEV_APPROOT}/plane/rabbitmq.env
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+  minio:
+    image: "docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z"
+    container_name: ddev-${DDEV_SITENAME}-minio
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}
+    restart: "no"
+    command: server /export --console-address ":9090"
+    expose:
+      - "9000"
+    env_file:
+      - ${DDEV_APPROOT}/plane/minio.env
+    volumes:
+      - minio_data:/export
+# Named after the project, so removing the project removes them with its database, and a new build starts empty.
+volumes:
+  rabbitmq_data:
+    name: ddev-${DDEV_SITENAME}-plane-rabbitmq
+  minio_data:
+    name: ddev-${DDEV_SITENAME}-plane-minio

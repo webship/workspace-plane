@@ -1,0 +1,44 @@
+{
+ "count": 1,
+ "extra_stats": null,
+ "grouped_by": null,
+ "next_cursor": "100:1:0",
+ "next_page_results": false,
+ "prev_cursor": "100:-1:1",
+ "prev_page_results": false,
+ "results": [
+  {
+   "access": "INTERNAL",
+   "actor": {
+    "avatar": "",
+    "avatar_url": null,
+    "display_name": "member",
+    "email": "member@example.com",
+    "first_name": "Member",
+    "id": "8131ba8b-68ec-4b3f-9d85-01035cb30e89",
+    "last_name": "Test"
+   },
+   "attachments": [],
+   "comment_html": "<p class=\"editor-paragraph-block\" data-id=\"972e0f3a-18d5-48ca-a5c9-228441bf5ef2\">Checked on the test site</p>",
+   "created_at": "2026-11-25T14:06:31.672067Z",
+   "created_by": "8131ba8b-68ec-4b3f-9d85-01035cb30e89",
+   "deleted_at": null,
+   "description": "aada0e46-0801-42ee-99c5-f6507d2e85a4",
+   "edited_at": null,
+   "external_id": null,
+   "external_source": null,
+   "id": "e0438e03-5f5d-43f5-baee-0eb2836069a5",
+   "is_member": true,
+   "issue": "422e3eb1-35e7-408d-8ed8-12078bdbea76",
+   "parent": null,
+   "project": "920d4a86-c839-4ab0-813a-12f1e4c694ce",
+   "updated_at": "2026-11-25T14:06:31.672076Z",
+   "updated_by": null,
+   "workspace": "a552e5a5-8f41-4166-91c4-9c32beb1e699"
+  }
+ ],
+ "sub_grouped_by": null,
+ "total_count": 1,
+ "total_pages": 1,
+ "total_results": 1
+}
