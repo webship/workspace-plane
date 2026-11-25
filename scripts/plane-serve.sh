@@ -9,6 +9,7 @@ set -a
 # shellcheck disable=SC1091
 . "${here}/env" || exit 1
 set +a
-# The proxy keeps its own files (its instance's name, its locks) in a folder the host user owns.
-export XDG_DATA_HOME=/app/data XDG_CONFIG_HOME=/app/data
+# The proxy keeps its own files (its instance's name, its locks) in a folder the host user owns (the project's web
+# image makes it).
+export XDG_DATA_HOME=/app/var/data XDG_CONFIG_HOME=/app/var/data
 exec sh "${here}/plane-start.sh"

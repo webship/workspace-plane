@@ -149,8 +149,13 @@ test('on Docker Compose, Podman and Kubernetes: the all-in-one image as the web 
       assert.match(fragment, /sed -i '\/\^user=root\$\/d' "\$\{conf\}"/);
       assert.match(fragment, /if grep -q '\^user=' "\$\{conf\}" ; then echo "[^"]+" >&2 ; exit 1 ; fi/, 'a release whose supervisor names another user stops the build, saying why');
       assert.match(fragment, /chown www-data:www-data \/app \/app\/plane\.env/);
-      assert.match(fragment, /chown -R www-data:www-data \/app\/logs \/app\/data \/app\/backend/);
+      assert.match(fragment, /chown -R www-data:www-data \/app\/var \/app\/backend/);
       assert.doesNotMatch(fragment, /chown -R www-data:www-data \/app( |$)/m, 'never the whole image again (its node apps are 1.6 GB)');
+      // The image's own volumes (/app/logs, /app/data) keep the image's owner on Podman: the logs go to /app/var.
+      assert.match(fragment, /sed -i 's#\/app\/logs\/#\/app\/var\/logs\/#g' "\$\{conf\}"/);
+      assert.match(fragment, /if grep -q '\/app\/logs' "\$\{conf\}" ; then echo "[^"]+" >&2 ; exit 1 ; fi/, 'a release that logs elsewhere stops the build, saying why');
+      assert.match(fragment, /mkdir -p \/app\/var\/logs\/access \/app\/var\/logs\/error \/app\/var\/data/);
+      assert.doesNotMatch(fragment, /chown[^\n]*\/app\/(logs|data)\b/, 'nothing is changed in the image\'s volumes');
       // The site's values: the address with its port where Plane lets one in, its proxy on the port the stack serves.
       const env = w.read('plane/env');
       for (const line of ['DOMAIN_NAME=127.0.0.1', 'APP_DOMAIN=127.0.0.1', 'APP_PROTOCOL=http', 'SITE_ADDRESS=:8080', 'WEB_URL=http://127.0.0.1:33001',
@@ -199,7 +204,7 @@ test('the services\' images are the same on every runtime, and Plane starts the 
   assert.match(readme, /\[pgsty\/silo\]\(https:\/\/github\.com\/pgsty\/silo\), a fork of MinIO maintained by PGSTY, AGPL-3\.0/, 'the store\'s source and licence');
   const serve = read('scripts/plane-serve.sh');
   assert.match(serve, /^set -a\n# shellcheck disable=SC1091\n\. "\$\{here\}\/env" \|\| exit 1\nset \+a$/m, 'the site\'s values in its environment');
-  assert.match(serve, /^export XDG_DATA_HOME=\/app\/data XDG_CONFIG_HOME=\/app\/data$/m, 'the proxy\'s files in a folder the host user owns');
+  assert.match(serve, /^export XDG_DATA_HOME=\/app\/var\/data XDG_CONFIG_HOME=\/app\/var\/data$/m, 'the proxy\'s files in a folder the host user owns');
   assert.match(serve, /^exec sh "\$\{here\}\/plane-start\.sh"$/m, 'then the same start as on DDEV');
 });
 

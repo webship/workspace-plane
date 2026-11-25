@@ -66,7 +66,8 @@ gets the login form, not the setup's "Get started".
   volumes named after the project.
 - **On Docker Compose and Podman** the same image is the web container's (the workspace's generic stack), run as the
   host user: the project's web image gives that user the folders Plane writes to, and runs Plane's supervisor without
-  the user it names. Valkey, RabbitMQ and the store are the project's own services (`rt_service`), the same pinned
+  the user it names. Plane's logs and its proxy's files go to `/app/var`, as the image's own `/app/logs` and
+  `/app/data` are volumes that keep the image's owner on Podman. Valkey, RabbitMQ and the store are the project's own services (`rt_service`), the same pinned
   images as on DDEV, their containers and volumes named after the project; the site is at `http://127.0.0.1:<port>`,
   and its proxy listens on 8080 in the web container. Removing the project removes them with it.
 - **On Kubernetes** (the workspace's kind cluster) the web pod runs the same image, the project's folder mounted from

@@ -197,12 +197,17 @@ YAMLEOF
     && rt_web_build plane <<'DOCKEREOF'
 # Plane's all-in-one image runs as the host user here (plane-serve.sh, rt_serve): its supervisor runs without the user
 # its settings name (root), and what Plane writes while it runs belongs to the host user, www-data with the host's UID
-# by now: its settings file and its folder, its logs, its proxy's files, the backend's static files and its scheduler's.
+# by now: its settings file and its folder, the backend's static files and its scheduler's, its logs and its proxy's
+# files. The image declares /app/logs and /app/data as volumes, which a build cannot change on every engine (Podman's
+# keeps them as the image has them, root's): the logs and the proxy's files go to /app/var instead.
 RUN conf=/etc/supervisor/conf.d/supervisor.conf \
   && sed -i '/^user=root$/d' "${conf}" \
   && if grep -q '^user=' "${conf}" ; then echo "Plane's supervisor names a user the Plane plugin does not know: build this release on DDEV, or update the plugin." >&2 ; exit 1 ; fi \
+  && sed -i 's#/app/logs/#/app/var/logs/#g' "${conf}" \
+  && if grep -q '/app/logs' "${conf}" ; then echo "Plane's supervisor writes its logs where the Plane plugin does not know: build this release on DDEV, or update the plugin." >&2 ; exit 1 ; fi \
+  && mkdir -p /app/var/logs/access /app/var/logs/error /app/var/data \
   && chown www-data:www-data /app /app/plane.env \
-  && chown -R www-data:www-data /app/logs /app/data /app/backend
+  && chown -R www-data:www-data /app/var /app/backend
 DOCKEREOF
   ) || return 1 ;
   ( cd "${project_path}" \
