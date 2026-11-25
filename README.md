@@ -78,6 +78,20 @@ gets the login form, not the setup's "Get started".
   on the page it shows when it refuses a form.
 - Lando and Docksal are not proven for Plane yet: asked for one, the builder says so and changes nothing.
 
+The images, pinned and named in full, are the same on every runtime:
+
+| Image | What it is | Source and licence |
+| --- | --- | --- |
+| `docker.io/makeplane/plane-aio-community:v1.5.1` | Plane, all in one: its proxy, web app, admin, space, API, live server and workers (`--release` picks another tag) | [makeplane/plane](https://github.com/makeplane/plane), AGPL-3.0 |
+| `docker.io/valkey/valkey:7.2.11-alpine` | The cache | [valkey-io/valkey](https://github.com/valkey-io/valkey), BSD-3-Clause |
+| `docker.io/library/rabbitmq:3.13.6-alpine` | The queue | [rabbitmq/rabbitmq-server](https://github.com/rabbitmq/rabbitmq-server), MPL-2.0 |
+| `docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z` | The S3 store | [pgsty/silo](https://github.com/pgsty/silo), a fork of MinIO maintained by PGSTY, AGPL-3.0 like MinIO |
+
+The store is the one Plane's own compose files pin at v1.5.1 ([makeplane/plane#9962](https://github.com/makeplane/plane/pull/9962)),
+as MinIO publishes no community images any more. Its entrypoint turns the `server …` command into its own `silo
+server …`, so the service runs `server /export --console-address ":9090"` as MinIO's would. The queue and the cache
+are the releases Plane's compose files run; the queue without the management UI the plugin does not use.
+
 The site's own values, its secret keys and the keys of its queue and its store, are made for it and kept in `plane/`
 of the project, which only you can read. The builder never prints them. The image starts from its own settings file
 and copies only some of the container's values into it: `plane-start.sh` puts the site's other values into that file

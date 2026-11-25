@@ -190,6 +190,13 @@ test('the services\' images are the same on every runtime, and Plane starts the 
     assert.ok(image, constant);
     assert.match(compose, new RegExp(`\\n  ${name}:\\n    image: "${image.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}"\\n`), `${name}: ${image} on DDEV too`);
   }
+  // The README names each image, with its source and licence.
+  const readme = read('README.md');
+  for (const constant of ['PLANE_VALKEY_IMAGE', 'PLANE_RABBITMQ_IMAGE', 'PLANE_STORE_IMAGE']) {
+    const image = (FUN.match(new RegExp(`^readonly ${constant}='([^']+)';$`, 'm')) || [])[1] as string;
+    assert.ok(readme.includes(`| \`${image}\` |`), `the README lists ${image}`);
+  }
+  assert.match(readme, /\[pgsty\/silo\]\(https:\/\/github\.com\/pgsty\/silo\), a fork of MinIO maintained by PGSTY, AGPL-3\.0/, 'the store\'s source and licence');
   const serve = read('scripts/plane-serve.sh');
   assert.match(serve, /^set -a\n# shellcheck disable=SC1091\n\. "\$\{here\}\/env" \|\| exit 1\nset \+a$/m, 'the site\'s values in its environment');
   assert.match(serve, /^export XDG_DATA_HOME=\/app\/data XDG_CONFIG_HOME=\/app\/data$/m, 'the proxy\'s files in a folder the host user owns');
