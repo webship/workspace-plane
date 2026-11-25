@@ -1,7 +1,7 @@
 {
   "name": "@webship.co/workspace-plane",
   "version": "1.0.0",
-  "description": "Plane for Webship Workspace: the builder (`cmd-plane-project.sh`, a site of the open-source project and work management software, Community Edition, from Plane's all-in-one image on the project's own PostgreSQL, with Valkey, RabbitMQ and an S3 store beside it, in containers: DDEV, with the default accounts as members of a sample workspace and project and its work items and cycle) and its tool in every sites folder, the Plane step pack wired into the testing setup, the work items of a Plane as work items of the tracker family (list, read, analyze, and do the work with the workspace's AI CLI on a branch; comments, moves and assignees after a person's click, writes off by default; the Community Edition has no worklog and no server-side filters), and its AI items in their folders.",
+  "description": "Plane for Webship Workspace: the builder (`cmd-plane-project.sh`, a site of the open-source project and work management software, Community Edition, from Plane's all-in-one image on the project's own PostgreSQL, with Valkey, RabbitMQ and an S3 store beside it, in containers: DDEV, Docker Compose, Podman or Kubernetes, with the default accounts as members of a sample workspace and project and its work items and cycle) and its tool in every sites folder, the Plane step pack wired into the testing setup, the work items of a Plane as work items of the tracker family (list, read, analyze, and do the work with the workspace's AI CLI on a branch; comments, moves and assignees after a person's click, writes off by default; the Community Edition has no worklog and no server-side filters), and its AI items in their folders.",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "license": "ISC",
@@ -80,6 +80,7 @@
         "scripts/docker-compose.plane.yaml",
         "scripts/plane-site.py",
         "scripts/plane-start.sh",
+        "scripts/plane-serve.sh",
         "testing/site.feature"
       ]
     },
@@ -101,8 +102,10 @@
       ]
     },
     "features": [
-      "features/plane.feature"
-    ]
+      "features/plane.feature",
+      "features/plane-runtimes.feature"
+    ],
+    "featuresSite": "cmd-plane-project.sh ci-plane --install --add-users --sample-content --runtime docker"
   },
   "dependencies": {
     "@webship.co/workspace-tracker": "^1.0.2"

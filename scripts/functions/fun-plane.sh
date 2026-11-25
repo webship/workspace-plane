@@ -10,14 +10,18 @@
 #   - DDEV (the default): Plane's all-in-one image (its proxy, web app, admin, space, API, live server and workers) is a
 #     service of a generic project, on the project's own PostgreSQL (the db service), with Valkey, RabbitMQ and an S3
 #     store (MinIO) as services beside it, at https://<name>.ddev.site; the project's web container keeps the mail
-#     catcher. The stack is heavy: the builder asks for 4 GB of free memory before it starts.
-# Docker Compose, Podman, Kubernetes, Lando and Docksal are not proven yet: asked for one, the builder says so and
-# changes nothing.
+#     catcher.
+#   - Docker Compose, Podman and Kubernetes (--runtime docker, podman, kubernetes): Plane's all-in-one image is the web
+#     container's (rt_stack image), run as the host user (rt_web_build, plane-serve.sh, rt_serve), on the project's
+#     PostgreSQL, with Valkey, RabbitMQ and the store as the project's own services (rt_service, webship/workspace#900);
+#     at http://127.0.0.1:<port>, or on Kubernetes (kind) at the node's address and a NodePort.
+# The stack is heavy: the builder asks for 4 GB of free memory before it starts. Lando and Docksal are not proven yet:
+# asked for one, the builder says so and changes nothing.
 # The site's accounts and content go through Django's own shell in Plane's container (plane-site.py), its input never
 # on a command line.
 #
 # The container tool has no project type for Plane, so a site of this plugin is recognised by a file on DDEV
-# (.ddev/config.plane.yaml, written by the builder).
+# (.ddev/config.plane.yaml, written by the builder) and by the plugin's claim on the other runtimes (rt_claim).
 # Four names are the ones the core's tools look for:
 #   set_plane_users          the default accounts                          (cmd-tools-add-users.sh <project> plane)
 #   add_plane_users          make them, and their memberships              (the same tool, and --add-users of the builder)
@@ -41,6 +45,15 @@ readonly PLANE_FILES='plane';
 # The free memory a build asks for, in MB: the all-in-one image runs a dozen processes, beside PostgreSQL, Valkey,
 # RabbitMQ and the store.
 readonly PLANE_MEMORY_MB=4096;
+
+# The images of Plane's services, pinned and by their whole names (docker-compose.plane.yaml names the same on DDEV):
+# its cache, its queue and its S3 store.
+readonly PLANE_VALKEY_IMAGE='docker.io/valkey/valkey:7.2.11-alpine';
+readonly PLANE_RABBITMQ_IMAGE='docker.io/library/rabbitmq:3.13.6-alpine';
+readonly PLANE_STORE_IMAGE='docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z';
+
+# The port Plane's own proxy listens on in the web container, on a runtime other than DDEV (rt_serve).
+readonly PLANE_SERVE_PORT=8080;
 
 # How many logins Plane allows from one address on a site the builder makes (--login-limit, or site_plane_login_limit
 # of the folder's settings): a dev and test setting. Plane's own default is 10/minute; a test suite logs in more often
@@ -72,12 +85,15 @@ function plane_runtime() {
   if declare -f runtime_of > /dev/null ; then runtime_of "$@" ; else echo 'ddev' ; fi
 }
 
-# The address of the site in this folder (or of a new build named PROJECT_NAME, on DDEV).
+# The address of the site in this folder (or of a new build named PROJECT_NAME, on DDEV); on another runtime the one
+# the runtime gives it.
 function plane_url() {
+  if [ "$(plane_runtime)" != 'ddev' ] && declare -f rt_url > /dev/null ; then rt_url ; return ; fi
   echo "https://${1:-${PROJECT_NAME}}.ddev.site" ;
 }
 
-# Is this folder a Plane site of this plugin? On DDEV the builder leaves .ddev/config.plane.yaml in it.
+# Is this folder a Plane site of this plugin? On DDEV the builder leaves .ddev/config.plane.yaml in it; on another
+# runtime the project carries the plugin's claim.
 function plane_is_project() {
   local project_path="$1" ;
   [ -f "${project_path}/.ddev/config.plane.yaml" ] && return 0 ;
@@ -105,7 +121,7 @@ function plane_enter_project() {
 function plane_refresh_files() {
   local project_path="$1" from="${WORKSPACE_SCRIPTS}/plugins/plane" f ;
   [ -d "${project_path}/${PLANE_FILES}" ] || return 0 ;
-  for f in plane-site.py plane-start.sh ; do
+  for f in plane-site.py plane-start.sh plane-serve.sh ; do
     if [ -f "${from}/${f}" ] && ! cmp -s "${from}/${f}" "${project_path}/${PLANE_FILES}/${f}" ; then
       cp "${from}/${f}" "${project_path}/${PLANE_FILES}/${f}" || return 1 ;
     fi
@@ -127,47 +143,104 @@ function plane_free_memory() {
   awk '/^MemAvailable:/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null ;
 }
 
-# Write the project's files: Plane's services (.ddev/docker-compose.plane.yaml), its image in .ddev/.env, the claim
-# (.ddev/config.plane.yaml) and the plugin's scripts.
+# The values of Plane's services (plane/rabbitmq.env, plane/minio.env, which only you can read): the keys of its queue
+# and its store, of this site only. Written first, so the services find them on every runtime (Kubernetes keeps a copy
+# of each as a Secret of the project when the project is written).
+function plane_write_service_env() {
+  local project_path="$1" mq store_user store_key ;
+  mq="$(plane_secret 32)" ; store_user="plane$(plane_secret 12)" ; store_key="$(plane_secret 40)" ;
+  mkdir -p "${project_path}/${PLANE_FILES}" || return 1 ;
+  ( umask 077 && cat > "${project_path}/${PLANE_FILES}/rabbitmq.env" <<ENVEOF
+RABBITMQ_DEFAULT_USER=plane
+RABBITMQ_DEFAULT_PASS=${mq}
+RABBITMQ_DEFAULT_VHOST=plane
+ENVEOF
+  cat > "${project_path}/${PLANE_FILES}/minio.env" <<ENVEOF
+MINIO_ROOT_USER=${store_user}
+MINIO_ROOT_PASSWORD=${store_key}
+ENVEOF
+  ) ;
+}
+
+# Write the project's files and the plugin's scripts. On DDEV Plane's services (.ddev/docker-compose.plane.yaml), its
+# image in .ddev/.env and the claim (.ddev/config.plane.yaml). On another runtime (Docker Compose, Podman, Kubernetes)
+# the claim, the all-in-one image as the web container's, run as the host user, the cache, the queue and the store as
+# the project's own services, and Plane's start (rt_claim, rt_stack, rt_web_build, rt_service, rt_serve).
 function plane_write_config() {
-  local project_path="$1" release="$2" ;
+  local project_path="$1" release="$2" runtime="${3:-ddev}" ;
   local from="${WORKSPACE_SCRIPTS}/plugins/plane" f ;
-  for f in docker-compose.plane.yaml plane-site.py plane-start.sh ; do
+  for f in docker-compose.plane.yaml plane-site.py plane-start.sh plane-serve.sh ; do
     if [ ! -f "${from}/${f}" ] ; then
       echo "${f} is not in ${from}: install the plugin (plugins.sh --install plane)." ;
       return 1 ;
     fi
   done
   mkdir -p "${project_path}/${PLANE_FILES}" || return 1 ;
-  cp "${from}/plane-site.py" "${from}/plane-start.sh" "${project_path}/${PLANE_FILES}/" || return 1 ;
-  cp "${from}/docker-compose.plane.yaml" "${project_path}/.ddev/docker-compose.plane.yaml" || return 1 ;
-  printf 'PLANE_IMAGE=%s\n' "docker.io/makeplane/plane-aio-community:${release}" > "${project_path}/.ddev/.env" || return 1 ;
-  cat > "${project_path}/.ddev/config.plane.yaml" <<YAMLEOF
+  cp "${from}/plane-site.py" "${from}/plane-start.sh" "${from}/plane-serve.sh" "${project_path}/${PLANE_FILES}/" || return 1 ;
+
+  if [ "${runtime}" = 'ddev' ] ; then
+    cp "${from}/docker-compose.plane.yaml" "${project_path}/.ddev/docker-compose.plane.yaml" || return 1 ;
+    printf 'PLANE_IMAGE=%s\n' "docker.io/makeplane/plane-aio-community:${release}" > "${project_path}/.ddev/.env" || return 1 ;
+    cat > "${project_path}/.ddev/config.plane.yaml" <<YAMLEOF
 # Plane in this project: its services (docker-compose.plane.yaml), its image in .env, the site's own values in
 # ../plane/*.env. Written by the Plane builder of the workspace; build again rather than editing.
 web_environment:
   - PLANE_RELEASE=${release}
 YAMLEOF
+    return 0 ;
+  fi
+
+  # Another runtime: the all-in-one image is the web container's, and the stack starts it as the host user.
+  ( cd "${project_path}" \
+    && rt_claim plane \
+    && rt_stack image "docker.io/makeplane/plane-aio-community:${release}" \
+    && rt_web_build plane <<'DOCKEREOF'
+# Plane's all-in-one image runs as the host user here (plane-serve.sh, rt_serve): its supervisor runs without the user
+# its settings name (root), and what Plane writes while it runs belongs to the host user, www-data with the host's UID
+# by now: its settings file and its folder, its logs, its proxy's files, the backend's static files and its scheduler's.
+RUN conf=/etc/supervisor/conf.d/supervisor.conf \
+  && sed -i '/^user=root$/d' "${conf}" \
+  && if grep -q '^user=' "${conf}" ; then echo "Plane's supervisor names a user the Plane plugin does not know: build this release on DDEV, or update the plugin." >&2 ; exit 1 ; fi \
+  && chown www-data:www-data /app /app/plane.env \
+  && chown -R www-data:www-data /app/logs /app/data /app/backend
+DOCKEREOF
+  ) || return 1 ;
+  ( cd "${project_path}" \
+    && rt_service valkey "${PLANE_VALKEY_IMAGE}" --port 6379 \
+    && rt_service rabbitmq "${PLANE_RABBITMQ_IMAGE}" --port 5672 --env-file "${PLANE_FILES}/rabbitmq.env" --volume /var/lib/rabbitmq \
+    && rt_service minio "${PLANE_STORE_IMAGE}" --port 9000 --env-file "${PLANE_FILES}/minio.env" --volume /export \
+      --command 'server /export --console-address ":9090"' \
+    && rt_serve "${PLANE_SERVE_PORT}" "bash ${PLANE_FILES}/plane-serve.sh" ) || return 1 ;
 }
 
-# The site's own values (plane/env, plane/rabbitmq.env, plane/minio.env, which only you can read): the address, the
-# project's database, the queue, the cache and the store with keys of this site only, and its secret keys.
+# The site's own values (plane/env, which only you can read): the address, the project's database, the queue, the
+# cache and the store with the keys of its services, and its secret keys.
 function plane_write_env() {
-  local project_path="$1" release="$2" base_url="$3" login_limit="${4:-${PLANE_LOGIN_LIMIT}}" ;
-  local host="${base_url#*://}" mq store_user store_key ;
+  local project_path="$1" release="$2" base_url="$3" login_limit="${4:-${PLANE_LOGIN_LIMIT}}" runtime="${5:-ddev}" ;
+  local host="${base_url#*://}" protocol="${base_url%%://*}" site_address=':80' urls='' mq store_user store_key ;
   host="${host%%/*}" ;
-  mq="$(plane_secret 32)" ; store_user="plane$(plane_secret 12)" ; store_key="$(plane_secret 40)" ;
+  mq="$(sed -n 's/^RABBITMQ_DEFAULT_PASS=//p' "${project_path}/${PLANE_FILES}/rabbitmq.env")" ;
+  store_user="$(sed -n 's/^MINIO_ROOT_USER=//p' "${project_path}/${PLANE_FILES}/minio.env")" ;
+  store_key="$(sed -n 's/^MINIO_ROOT_PASSWORD=//p' "${project_path}/${PLANE_FILES}/minio.env")" ;
+  { [ -n "${mq}" ] && [ -n "${store_user}" ] && [ -n "${store_key}" ] ; } || { echo "The keys of Plane's services are not in ${PLANE_FILES}/: build again." ; return 1 ; } ;
+  if [ "${runtime}" != 'ddev' ] ; then
+    # Plane's proxy listens on the port the stack serves. Plane's own start sets its address from DOMAIN_NAME, which
+    # takes no port: the address with its port is what the logins, the instance's admin and the published views come
+    # back to.
+    site_address=":${PLANE_SERVE_PORT}" ;
+    urls="APP_BASE_URL=${base_url}"$'\n'"ADMIN_BASE_URL=${base_url}"$'\n'"SPACE_BASE_URL=${base_url}"$'\n' ;
+  fi
   ( umask 077 && cat > "${project_path}/${PLANE_FILES}/env" <<ENVEOF
 # The values of this Plane site, made by the Plane builder of the workspace: its secret keys and the keys of its queue
 # and its store are of this site only. Read by Plane's container and by the plugin's scripts; never printed.
 PLANE_RELEASE=${release}
-DOMAIN_NAME=${host}
-APP_DOMAIN=${host}
-APP_PROTOCOL=https
-SITE_ADDRESS=:80
+DOMAIN_NAME=${host%%:*}
+APP_DOMAIN=${host%%:*}
+APP_PROTOCOL=${protocol}
+SITE_ADDRESS=${site_address}
 WEB_URL=${base_url}
 CORS_ALLOWED_ORIGINS=${base_url}
-DATABASE_URL=postgresql://db:db@db:5432/db
+${urls}DATABASE_URL=postgresql://db:db@db:5432/db
 REDIS_URL=redis://valkey:6379/
 AMQP_URL=amqp://plane:${mq}@rabbitmq:5672/plane
 AWS_REGION=us-east-1
@@ -182,34 +255,40 @@ GUNICORN_WORKERS=1
 # than a person; Plane's own default is 10/minute. plane-start.sh puts it into the image's own settings file.
 AUTHENTICATION_RATE_LIMIT=${login_limit}
 ENVEOF
-  cat > "${project_path}/${PLANE_FILES}/rabbitmq.env" <<ENVEOF
-RABBITMQ_DEFAULT_USER=plane
-RABBITMQ_DEFAULT_PASS=${mq}
-RABBITMQ_DEFAULT_VHOST=plane
-ENVEOF
-  cat > "${project_path}/${PLANE_FILES}/minio.env" <<ENVEOF
-MINIO_ROOT_USER=${store_user}
-MINIO_ROOT_PASSWORD=${store_key}
-ENVEOF
   ) ;
 }
 
 # Run a command line in Plane's container, in its backend folder (/app/backend), with the site's values; what is piped
-# in reaches it.
+# in reaches it. On DDEV Plane's own service; on another runtime the web container, as the host user.
 function plane_exec() {
-  ddev exec -s plane "sh -c $(printf '%q' "cd /app/backend && ${1}")" ;
+  if [ "$(plane_runtime)" = 'ddev' ] ; then
+    ddev exec -s plane "sh -c $(printf '%q' "cd /app/backend && ${1}")" ;
+  else
+    ddev exec "set -a ; . /var/www/html/${PLANE_FILES}/env ; set +a ; cd /app/backend && ${1}" ;
+  fi
+}
+
+# The folder the plugin's scripts are read from in Plane's container.
+function plane_scripts_dir() {
+  if [ "$(plane_runtime)" = 'ddev' ] ; then echo '/opt/webship' ; else echo "/var/www/html/${PLANE_FILES}" ; fi
+}
+
+# Where Plane answers inside the project's network: on DDEV its own service, from the web container; on another
+# runtime its proxy, in the web container itself.
+function plane_inside_url() {
+  if [ "$(plane_runtime)" = 'ddev' ] ; then echo 'http://plane:80' ; else echo "http://127.0.0.1:${PLANE_SERVE_PORT}" ; fi
 }
 
 # The answer of Plane's instance endpoint (200 once its API serves and reaches its database), asked inside the
-# project's network, from the web container.
+# project's network.
 function plane_probe() {
-  ddev exec "curl -s -o /dev/null -m 10 -w '%{http_code}' http://plane:80/api/instances/" < /dev/null 2>/dev/null | tr -d '\r' | tail -1 ;
+  ddev exec "curl -s -o /dev/null -m 10 -w '%{http_code}' $(plane_inside_url)/api/instances/" < /dev/null 2>/dev/null | tr -d '\r' | tail -1 ;
 }
 
 # Whether the site's instance answers that it is set up (a visitor gets the login form, not the setup's "Get started"),
-# asked inside the project's network, from the web container.
+# asked inside the project's network.
 function plane_setup_done() {
-  ddev exec "curl -s -m 10 http://plane:80/api/instances/" < /dev/null 2>/dev/null | tr -d '\r' | grep -q '"is_setup_done": *true' ;
+  ddev exec "curl -s -m 10 $(plane_inside_url)/api/instances/" < /dev/null 2>/dev/null | tr -d '\r' | grep -q '"is_setup_done": *true' ;
 }
 
 # Wait until the site answers, in the project's folder: up to fifteen minutes, as the first start migrates the database.
@@ -221,14 +300,14 @@ function plane_wait() {
     sleep 3 ;
   done
   echo "Plane did not answer (its instance endpoint: ${code:-none}); the end of its log:" ;
-  ddev logs -s plane --tail 40 < /dev/null 2>/dev/null ;
+  if [ "$(plane_runtime)" = 'ddev' ] ; then ddev logs -s plane --tail 40 < /dev/null 2>/dev/null ; else ddev logs < /dev/null 2>/dev/null | tail -n 40 ; fi
   return 1 ;
 }
 
 # Run verbs of plane-site.py (defaults, accounts, content, tidy, list, token, version) with Django's own shell in
 # Plane's container. A payload (accounts, passwords) travels on the input, never on a command line.
 function plane_site() {
-  plane_exec "PLANE_VERBS='$*' python manage.py shell -c \"exec(open('/opt/webship/plane-site.py').read())\"" ;
+  plane_exec "PLANE_VERBS='$*' python manage.py shell -c \"exec(open('$(plane_scripts_dir)/plane-site.py').read())\"" ;
 }
 
 # The release the site runs, as Plane says it.
@@ -262,8 +341,12 @@ function plane_build() {
   local project_path="${WORKSPACE_ROOT}/${doc_name}/${PROJECT_NAME}" ;
   local runtime ; runtime="$(cd "${WORKSPACE_ROOT}/${doc_name}" && plane_runtime)" ;
 
-  if [ "${runtime}" != 'ddev' ] ; then
-    echo "Plane builds on DDEV for now (--runtime ddev), not on ${runtime}: that runtime is not proven for it yet. Nothing was changed." ;
+  case "${runtime}" in
+    ddev|docker|podman|kubernetes) ;;
+    *) echo "Plane builds on DDEV, Docker Compose, Podman and Kubernetes for now (--runtime ddev, docker, podman or kubernetes), not on ${runtime}: that runtime is not proven for it yet. Nothing was changed." ; exit 1 ;;
+  esac
+  if [ "${runtime}" != 'ddev' ] && ! declare -f rt_service > /dev/null ; then
+    echo "--runtime ${runtime} needs a Webship Workspace whose projects carry services of their own (rt_service, webship/workspace#900): update the workspace, or build on DDEV. Nothing was changed." ;
     exit 1 ;
   fi
   if ! [[ "${release}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
@@ -305,13 +388,23 @@ function plane_build() {
   cd "${project_path}" || exit 1 ;
 
   # A generic project on PostgreSQL 15, the release Plane's own stack runs.
-  ddev config --project-type=generic --project-name=${PROJECT_NAME} --database=postgres:15 \
-    --nodejs-version=$(ddev_nodejs_version) < /dev/null || exit 1 ;
-  plane_write_config "${project_path}" "${release}" || exit 1 ;
+  if [ "${runtime}" = 'ddev' ] ; then
+    ddev config --project-type=generic --project-name=${PROJECT_NAME} --database=postgres:15 \
+      --nodejs-version=$(ddev_nodejs_version) < /dev/null || exit 1 ;
+  else
+    # The runtime's own project: Docker Compose, Podman or Kubernetes, through the runtime layer.
+    ddev config --project-type=generic --webserver-type=generic --project-name=${PROJECT_NAME} --database=postgres:15 --auto < /dev/null || exit 1 ;
+  fi
+  plane_write_service_env "${project_path}" || exit 1 ;
+  plane_write_config "${project_path}" "${release}" "${runtime}" || exit 1 ;
   local base_url ; base_url="$(plane_url)" ;
-  plane_write_env "${project_path}" "${release}" "${base_url}" "${login_limit}" || exit 1 ;
+  plane_write_env "${project_path}" "${release}" "${base_url}" "${login_limit}" "${runtime}" || exit 1 ;
 
-  echo "Starting the project and Plane ${release}: its images are about 800 MB the first time, and the first start migrates the database." ;
+  if [ "${runtime}" = 'ddev' ] ; then
+    echo "Starting the project and Plane ${release}: its images are about 800 MB the first time, and the first start migrates the database." ;
+  else
+    echo "Starting the project and Plane ${release}: its images are about 800 MB the first time, the project's web image is built from Plane's, and the first start migrates the database." ;
+  fi
   ddev_up start -y < /dev/null || exit 1 ;
   plane_wait || exit 1 ;
 
@@ -433,7 +526,11 @@ function plane_cli_tool() {
   trim_project_name ;
   plane_enter_project || exit 1 ;
 
-  ddev describe -j 2>/dev/null | grep -q '"status":"running"' || ddev start -y < /dev/null || exit 1 ;
+  if [ "$(plane_runtime)" = 'ddev' ] ; then
+    ddev describe -j 2>/dev/null | grep -q '"status":"running"' || ddev start -y < /dev/null || exit 1 ;
+  else
+    ddev start < /dev/null > /dev/null 2>&1 || ddev start -y < /dev/null || exit 1 ;
+  fi
   plane_wait > /dev/null || { echo "Plane of ${PROJECT_NAME} does not answer; start it again (ddev restart in ${doc_name}/${PROJECT_NAME})." ; exit 1 ; } ;
 
   if [ ! "${RUN}" == '_none_' ] ; then

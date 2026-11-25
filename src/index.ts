@@ -45,7 +45,8 @@ export function assistantContext(): string {
   return [
     'Plane (a plugin, @webship.co/workspace-plane), the open-source project and work management software (its Community Edition): a site is built with',
     '`bash cmd-plane-project.sh <name> --install --add-users --sample-content` from a sites folder (dev, test, sandboxes, demos):',
-    'Plane\'s all-in-one image (v1.5.1 by default, `--release`) on the project\'s own PostgreSQL, with Valkey, RabbitMQ and an S3 store beside it, on DDEV at https://<name>.ddev.site.',
+    'Plane\'s all-in-one image (v1.5.1 by default, `--release`) on the project\'s own PostgreSQL, with Valkey, RabbitMQ and an S3 store beside it, on DDEV at https://<name>.ddev.site,',
+    'or with `--runtime docker` or `podman` at http://127.0.0.1:<port>, or with `--runtime kubernetes` on the workspace\'s kind cluster at the node\'s address (the image runs as the host user there, and the cache, the queue and the store are the project\'s own services).',
     'It needs about 4 GB of free memory, and the builder says so before it starts.',
     '`--install` sets the instance up and makes the workspace account its administrator; `--add-users` adds the default accounts (owner: Admin, member: Member, reader: Guest of the workspace webship and its project Webship site, identifier WEB; stranger: no membership), each @example.com;',
     '`--sample-content` adds the work items WEB-1 to WEB-3, the cycle "Sprint 1", the label "bug" and a comment.',
