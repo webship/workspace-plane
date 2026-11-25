@@ -534,7 +534,8 @@ function plane_cli_tool() {
   if [ "$(plane_runtime)" = 'ddev' ] ; then
     ddev describe -j 2>/dev/null | grep -q '"status":"running"' || ddev start -y < /dev/null || exit 1 ;
   else
-    ddev start < /dev/null > /dev/null 2>&1 || ddev start -y < /dev/null || exit 1 ;
+    # A site that answers is left as it is: on Podman a start makes every container of the project again.
+    [ "$(plane_probe)" = '200' ] || ddev start < /dev/null > /dev/null 2>&1 || ddev start -y < /dev/null || exit 1 ;
   fi
   plane_wait > /dev/null || { echo "Plane of ${PROJECT_NAME} does not answer; start it again (ddev restart in ${doc_name}/${PROJECT_NAME})." ; exit 1 ; } ;
 

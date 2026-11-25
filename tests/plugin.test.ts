@@ -98,7 +98,7 @@ test('the runtimes: DDEV, Docker Compose, Podman and Kubernetes; another is refu
   assert.ok(build.indexOf('plane_site defaults') > build.indexOf('plane_wait'), 'the instance is set up once the site answers');
   assert.ok(build.indexOf('plane_setup_done') > build.indexOf('plane_site defaults'), 'then the builder checks a visitor gets the login form, not the setup');
   const tool = FUN.slice(FUN.indexOf('function plane_cli_tool()'), FUN.indexOf('function testing_configure_plane()'));
-  assert.match(tool, /ddev start < \/dev\/null > \/dev\/null 2>&1 \|\| ddev start -y/, 'the tool starts a project of another runtime through its own layer');
+  assert.match(tool, /\[ "\$\(plane_probe\)" = '200' \] \|\| ddev start < \/dev\/null > \/dev\/null 2>&1 \|\| ddev start -y/, 'the tool starts a project of another runtime through its own layer, and leaves one that answers as it is');
 });
 
 /** What the builder writes for a project, with the runtime layer's calls stood in: [log of the calls, the project]. */
