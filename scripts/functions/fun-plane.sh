@@ -213,8 +213,8 @@ DOCKEREOF
   ( cd "${project_path}" \
     && rt_service valkey "${PLANE_VALKEY_IMAGE}" --port 6379 \
     && rt_service rabbitmq "${PLANE_RABBITMQ_IMAGE}" --port 5672 --env-file "${PLANE_FILES}/rabbitmq.env" --volume /var/lib/rabbitmq \
-    && rt_service minio "${PLANE_STORE_IMAGE}" --port 9000 --env-file "${PLANE_FILES}/minio.env" --volume /export \
-      --command 'server /export --console-address ":9090"' \
+    && rt_service minio "${PLANE_STORE_IMAGE}" --port 9000 --env-file "${PLANE_FILES}/minio.env" --volume /data \
+      --command 'server /data --console-address ":9090"' \
     && rt_serve "${PLANE_SERVE_PORT}" "bash ${PLANE_FILES}/plane-serve.sh" ) || return 1 ;
 }
 

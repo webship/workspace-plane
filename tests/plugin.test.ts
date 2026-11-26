@@ -141,7 +141,7 @@ test('on Docker Compose, Podman and Kubernetes: the all-in-one image as the web 
         'rt_web_build plane',
         'rt_service [valkey] [docker.io/valkey/valkey:7.2.11-alpine] [--port] [6379]',
         'rt_service [rabbitmq] [docker.io/library/rabbitmq:3.13.6-alpine] [--port] [5672] [--env-file] [plane/rabbitmq.env] [--volume] [/var/lib/rabbitmq]',
-        'rt_service [minio] [docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z] [--port] [9000] [--env-file] [plane/minio.env] [--volume] [/export] [--command] [server /export --console-address ":9090"]',
+        'rt_service [minio] [docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z] [--port] [9000] [--env-file] [plane/minio.env] [--volume] [/data] [--command] [server /data --console-address ":9090"]',
         'rt_serve 8080 [bash plane/plane-serve.sh]',
       ], runtime);
       // The web image: Plane's supervisor without the user it names, and Plane's folders the host user's.
@@ -219,6 +219,16 @@ test('Plane\'s services on DDEV: the all-in-one image takes the project\'s addre
   assert.match(compose, /env_file:\n\s+- \$\{DDEV_APPROOT\}\/plane\/env/, 'the site\'s own values from its file');
   assert.match(compose, /name: ddev-\$\{DDEV_SITENAME\}-plane-minio/, 'the store is the project\'s');
   assert.match(compose, /name: ddev-\$\{DDEV_SITENAME\}-plane-rabbitmq/, 'the queue is the project\'s');
+  // Every volume an image of the stack declares (their registries' configs: Plane's /app/logs and /app/data, the
+  // store's /data, the queue's /var/lib/rabbitmq) is mounted from a volume named after the project: an unnamed one is
+  // left on the machine by ddev delete (#5). The store runs in the folder its image declares.
+  for (const [volume, folder, name] of [['plane_logs', '/app/logs', 'plane-logs'], ['plane_data', '/app/data', 'plane-data'],
+    ['minio_data', '/data', 'plane-minio'], ['rabbitmq_data', '/var/lib/rabbitmq', 'plane-rabbitmq']]) {
+    assert.ok(compose.includes(`      - ${volume}:${folder}\n`), `${folder} is mounted from ${volume}`);
+    assert.ok(compose.includes(`\n  ${volume}:\n    name: ddev-\${DDEV_SITENAME}-${name}\n`), `${volume} is named after the project`);
+  }
+  assert.match(compose, /command: server \/data --console-address ":9090"/, 'the store in its own volume folder');
+  assert.doesNotMatch(compose, /\/export/, 'no folder outside the store\'s volume');
   for (const image of compose.match(/image: "[^"]+"/g) || []) assert.match(image, /image: "(\$\{PLANE_IMAGE:-)?docker\.io\//, `${image}: every image by its whole name`);
   assert.doesNotMatch(compose, /SECRET_KEY:|PASSWORD:|ACCESS_KEY/, 'no secret in the compose file');
   const start = read('scripts/plane-start.sh');
