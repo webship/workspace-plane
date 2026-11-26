@@ -63,7 +63,8 @@ gets the login form, not the setup's "Get started".
   API, live server and workers in one container) is a service of a generic project, on the project's PostgreSQL 15,
   with Valkey, RabbitMQ and an S3 store (MinIO) as services beside it, at `https://mysite.ddev.site`. The project's
   web container keeps the mail catcher, at `https://mysite.ddev.site:8026`. The store and the queue keep their data in
-  volumes named after the project.
+  volumes named after the project, and so do Plane's `/app/logs` and `/app/data`, which its image declares as volumes:
+  removing the project removes every one of them.
 - **On Docker Compose and Podman** the same image is the web container's (the workspace's generic stack), run as the
   host user: the project's web image gives that user the folders Plane writes to, and runs Plane's supervisor without
   the user it names. Plane's logs and its proxy's files go to `/app/var`, as the image's own `/app/logs` and
@@ -90,7 +91,8 @@ The images, pinned and named in full, are the same on every runtime:
 
 The store is the one Plane's own compose files pin at v1.5.1 ([makeplane/plane#9962](https://github.com/makeplane/plane/pull/9962)),
 as MinIO publishes no community images any more. Its entrypoint turns the `server …` command into its own `silo
-server …`, so the service runs `server /export --console-address ":9090"` as MinIO's would. The queue and the cache
+server …`, so the service runs `server /data --console-address ":9090"` as MinIO's would, in `/data`, the folder its image
+declares as a volume. The queue and the cache
 are the releases Plane's compose files run; the queue without the management UI the plugin does not use.
 
 The site's own values, its secret keys and the keys of its queue and its store, are made for it and kept in `plane/`

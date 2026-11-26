@@ -36,6 +36,10 @@ services:
     volumes:
       # The plugin's scripts, which the builder and the tool run in this container.
       - ${DDEV_APPROOT}/plane:/opt/webship:ro
+      # The two volumes the image declares, named after the project: unnamed, they would be left on the machine each
+      # time the container is made.
+      - plane_logs:/app/logs
+      - plane_data:/app/data
     environment:
       VIRTUAL_HOST: ${DDEV_HOSTNAME}
       HTTP_EXPOSE: "80:80"
@@ -69,16 +73,22 @@ services:
       com.ddev.site-name: ${DDEV_SITENAME}
       com.ddev.approot: ${DDEV_APPROOT}
     restart: "no"
-    command: server /export --console-address ":9090"
+    # The store keeps its data in the folder its image declares as a volume, so it makes no other.
+    command: server /data --console-address ":9090"
     expose:
       - "9000"
     env_file:
       - ${DDEV_APPROOT}/plane/minio.env
     volumes:
-      - minio_data:/export
-# Named after the project, so removing the project removes them with its database, and a new build starts empty.
+      - minio_data:/data
+# Every volume an image of the stack declares, named after the project, so removing the project removes them with its
+# database, and a new build starts empty.
 volumes:
   rabbitmq_data:
     name: ddev-${DDEV_SITENAME}-plane-rabbitmq
   minio_data:
     name: ddev-${DDEV_SITENAME}-plane-minio
+  plane_logs:
+    name: ddev-${DDEV_SITENAME}-plane-logs
+  plane_data:
+    name: ddev-${DDEV_SITENAME}-plane-data
