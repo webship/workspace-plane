@@ -137,6 +137,10 @@ bash cmd-tools-plane-cli.sh mysite --cancel-users                     # keep the
 bash cmd-tools-plane-cli.sh mysite --connect member                   # the dashboard reads this site as member
 ```
 
+The tool starts a site that is stopped, and leaves one that answers as it is: on Podman a start makes every container
+of the project again (webship/workspace#906). On Docker Compose, Podman and Kubernetes it runs Plane's commands in the
+web container, as the host user, with the site's values.
+
 `--connect <login>` makes a new API key of the account (its earlier one is revoked) and writes it, with the site's
 address, into `core/config/plugin.plane.settings.yml`, and the sample project as the default one when none was set.
 The key is never shown.
