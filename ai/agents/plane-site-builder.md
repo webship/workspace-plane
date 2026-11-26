@@ -29,13 +29,17 @@ cd ~/workspace/sandboxes                      # or dev, test, demos
 bash cmd-plane-project.sh mysite --install --add-users                    # a site with its accounts
 bash cmd-plane-project.sh mysite --install --add-users --sample-content   # with the sample work items and cycle
 bash cmd-plane-project.sh myold --install --release v1.5.1
+bash cmd-plane-project.sh mydocker --install --add-users --runtime docker  # or podman, kubernetes
 ```
 
 The site is Plane's all-in-one image of the Community Edition (`makeplane/plane-aio-community`: its web app, its
 API, its workers and its proxy in one container) on the project's own PostgreSQL 15, with Valkey, RabbitMQ and an
 S3 store (MinIO) as services beside it. On DDEV the image takes the project's address, `https://mysite.ddev.site`;
-the project's web container keeps the mail catcher at `https://mysite.ddev.site:8026`. Other runtimes are not proven
-for Plane yet: the builder says so and stops before it changes anything.
+the project's web container keeps the mail catcher at `https://mysite.ddev.site:8026`. On Docker Compose and Podman
+(`--runtime docker`, `podman`) the image is the web container's, run as the host user, and Valkey, RabbitMQ and the
+store are the project's own services; the site is at `http://127.0.0.1:<port>`. On Kubernetes (`--runtime
+kubernetes`, the workspace's kind cluster) they run in the project's namespace, at the node's address and a NodePort.
+Lando and Docksal are not proven for Plane yet: the builder says so and stops before it changes anything.
 
 Plane is heavy: a running site takes about 2 GB of memory, and the builder refuses to start with less than 4 GB
 free (`free -m`). The first build pulls about 800 MB of images and takes a few minutes; the first start migrates the
@@ -48,7 +52,7 @@ database. Build one site at a time, and stop a site you are not using.
 | `--sample-content` | With `--install --add-users`: three work items of Webship site (one made as the Guest), its cycle "Sprint 1", the label "bug" and a comment |
 | `--release <tag>` | The release of the image: v1.5.1 by default |
 | `--login-limit <number>/<period>` | The logins Plane allows from one address: a dev and test setting, 100/minute by default (Plane's own is 10/minute) |
-| `--runtime ddev` | The container runtime: DDEV (the default, the one proven for Plane) |
+| `--runtime ddev`, `docker`, `podman` or `kubernetes` | The container runtime: DDEV (the default), Docker Compose, Podman or Kubernetes (a kind cluster) |
 | `--launch` | Open the site when it is ready |
 
 A project of the same name is deleted first, with its database, its files and its stores. The site's own values

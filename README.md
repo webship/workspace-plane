@@ -5,8 +5,8 @@ Plane, the open-source project and work management software (its Community Editi
 brings:
 
 - **a builder**, `cmd-plane-project.sh`: a real Plane site from Plane's all-in-one image on the project's own
-  PostgreSQL, with Valkey, RabbitMQ and an S3 store beside it, on DDEV, its instance set up, its default accounts as
-  members of a sample workspace and project, and its work items and cycle;
+  PostgreSQL, with Valkey, RabbitMQ and an S3 store beside it, on DDEV, Docker Compose, Podman or Kubernetes, its
+  instance set up, its default accounts as members of a sample workspace and project, and its work items and cycle;
 - **a tool**, `cmd-tools-plane-cli.sh`: what a site is and its accounts, Plane's own commands in its container, the
   default accounts, the sample content, a clean-up after a stopped test run, and the dashboard's connection;
 - **the step pack** [`@webship-js/plane-steps`](https://github.com/webship/plane-steps) wired into the workspace's
@@ -31,7 +31,8 @@ bash core/scripts/plugins.sh --configure plane
 
 - A sites folder: one of the `dev`, `test`, `sandboxes` or `demos` plugins. The commands are placed there.
 - The AI folders `ai-agents`, `ai-skills`, `ai-commands` and `ai-prompts`, where its AI items land.
-- DDEV, the container runtime Plane is proven on.
+- A container runtime: DDEV, or Docker, Podman or a kind cluster with the workspace's container runtimes
+  (`--runtime docker`, `podman`, `kubernetes`), where a project carries services of its own (webship/workspace#900).
 - About 800 MB of disk for the images the first time, and memory: a running site takes about 2 GB, and the builder
   asks for 4 GB free before it starts (`free -m`).
 
@@ -40,6 +41,7 @@ bash core/scripts/plugins.sh --configure plane
 ```bash
 cd ~/workspace/sandboxes                      # or dev, test, demos
 bash cmd-plane-project.sh mysite --install --add-users --sample-content
+bash cmd-plane-project.sh mysite --install --add-users --sample-content --runtime docker   # or podman, kubernetes
 ```
 
 | Flag | What it does |
@@ -49,7 +51,7 @@ bash cmd-plane-project.sh mysite --install --add-users --sample-content
 | `--sample-content` | With `--install --add-users`: the work items of Webship site, its cycle "Sprint 1", the label "bug" and a comment |
 | `--release <tag>` | The release of the all-in-one image: v1.5.1 by default |
 | `--login-limit <number>/<period>` | The logins Plane allows from one address on the site, a dev and test setting: 100/minute by default, where Plane's own default is 10/minute |
-| `--runtime ddev` | DDEV (the default, or `container.runtime` of `settings.yml`) |
+| `--runtime ddev`, `docker`, `podman` or `kubernetes` | DDEV (the default, or `container.runtime` of `settings.yml`), Docker Compose, Podman or Kubernetes (a kind cluster) |
 | `--launch` | Open the site when it is ready |
 
 A project of the same name is deleted first, with its database, its files and its stores. Every build sets the
@@ -62,8 +64,34 @@ gets the login form, not the setup's "Get started".
   with Valkey, RabbitMQ and an S3 store (MinIO) as services beside it, at `https://mysite.ddev.site`. The project's
   web container keeps the mail catcher, at `https://mysite.ddev.site:8026`. The store and the queue keep their data in
   volumes named after the project.
-- Docker Compose, Podman, Kubernetes, Lando and Docksal are not proven for Plane yet: asked for one, the builder says
-  so and changes nothing.
+- **On Docker Compose and Podman** the same image is the web container's (the workspace's generic stack), run as the
+  host user: the project's web image gives that user the folders Plane writes to, and runs Plane's supervisor without
+  the user it names. Plane's logs and its proxy's files go to `/app/var`, as the image's own `/app/logs` and
+  `/app/data` are volumes that keep the image's owner on Podman. Valkey, RabbitMQ and the store are the project's own services (`rt_service`), the same pinned
+  images as on DDEV, their containers and volumes named after the project; the site is at `http://127.0.0.1:<port>`,
+  and its proxy listens on 8080 in the web container. Removing the project removes them with it.
+- **On Kubernetes** (the workspace's kind cluster) the web pod runs the same image, the project's folder mounted from
+  the host, and each service is a Deployment, a ClusterIP Service and a volume claim of the project's namespace; the
+  site is at the node's address and a NodePort.
+- Plane's own start sets its address from a host name that takes no port, so on these runtimes the builder also gives
+  Plane the site's address with its port for the logins, the instance's admin and the published views to come back
+  to. Two links still leave the port out: the one in the e-mail Plane sends an account it activates again, and the one
+  on the page it shows when it refuses a form.
+- Lando and Docksal are not proven for Plane yet: asked for one, the builder says so and changes nothing.
+
+The images, pinned and named in full, are the same on every runtime:
+
+| Image | What it is | Source and licence |
+| --- | --- | --- |
+| `docker.io/makeplane/plane-aio-community:v1.5.1` | Plane, all in one: its proxy, web app, admin, space, API, live server and workers (`--release` picks another tag) | [makeplane/plane](https://github.com/makeplane/plane), AGPL-3.0 |
+| `docker.io/valkey/valkey:7.2.11-alpine` | The cache | [valkey-io/valkey](https://github.com/valkey-io/valkey), BSD-3-Clause |
+| `docker.io/library/rabbitmq:3.13.6-alpine` | The queue | [rabbitmq/rabbitmq-server](https://github.com/rabbitmq/rabbitmq-server), MPL-2.0 |
+| `docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z` | The S3 store | [pgsty/silo](https://github.com/pgsty/silo), a fork of MinIO maintained by PGSTY, AGPL-3.0 like MinIO |
+
+The store is the one Plane's own compose files pin at v1.5.1 ([makeplane/plane#9962](https://github.com/makeplane/plane/pull/9962)),
+as MinIO publishes no community images any more. Its entrypoint turns the `server …` command into its own `silo
+server …`, so the service runs `server /export --console-address ":9090"` as MinIO's would. The queue and the cache
+are the releases Plane's compose files run; the queue without the management UI the plugin does not use.
 
 The site's own values, its secret keys and the keys of its queue and its store, are made for it and kept in `plane/`
 of the project, which only you can read. The builder never prints them. The image starts from its own settings file
@@ -108,6 +136,10 @@ bash cmd-tools-plane-cli.sh mysite --add-users                        # the defa
 bash cmd-tools-plane-cli.sh mysite --cancel-users                     # keep them from logging in
 bash cmd-tools-plane-cli.sh mysite --connect member                   # the dashboard reads this site as member
 ```
+
+The tool starts a site that is stopped, and leaves one that answers as it is: on Podman a start makes every container
+of the project again (webship/workspace#906). On Docker Compose, Podman and Kubernetes it runs Plane's commands in the
+web container, as the host user, with the site's values.
 
 `--connect <login>` makes a new API key of the account (its earlier one is revoked) and writes it, with the site's
 address, into `core/config/plugin.plane.settings.yml`, and the sample project as the default one when none was set.
